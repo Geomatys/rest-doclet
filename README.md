@@ -99,7 +99,7 @@ Configure the javadoc plugin to use a custom doclet.  The following shows how to
                           <docletArtifact>
                               <groupId>com.geomatys.restdoclet</groupId>
                               <artifactId>rest-doclet</artifactId>
-                              <version>2.0.0-SNAPSHOT</version>
+                              <version>2.0.0</version>
                           </docletArtifact>
                           <useStandardDocletOptions>false</useStandardDocletOptions>
                           <destDir>restdoc</destDir>
