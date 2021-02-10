@@ -16,47 +16,51 @@
 package org.calrissian.restdoclet.util;
 
 
-import com.sun.javadoc.AnnotationDesc;
-import com.sun.javadoc.AnnotationValue;
-
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
+import java.util.Map.Entry;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.ExecutableElement;
 
 public class AnnotationUtils {
 
-    public static String getAnnotationName(AnnotationDesc annotation) {
-        try{
-            return annotation.annotationType().toString();
-        } catch (ClassCastException e)
-        {
+    public static String getAnnotationName(AnnotationMirror annotation) {
+        try {
+            return annotation.getAnnotationType().toString();
+        } catch (ClassCastException e) {
             return null;
         }
     }
 
-    public static List<String> getElementValue(AnnotationDesc annotation, String key) {
-        for (AnnotationDesc.ElementValuePair element : annotation.elementValues())
-            if (element.element().name().equals(key)) {
-                return resolveAnnotationValue(element.value());
+    public static List<String> getElementValue(AnnotationMirror annotation, String key) {
+        for (Entry<? extends ExecutableElement, ? extends AnnotationValue> element : annotation.getElementValues().entrySet()) {
+            if (element.getKey().getSimpleName().toString().equals(key)) {
+                return resolveAnnotationValue(element.getValue());
             }
-
+        }
         return emptyList();
     }
 
     private static List<String> resolveAnnotationValue(AnnotationValue value) {
-        List<String> retVal = new ArrayList<String>();
+        List<String> retVal = new ArrayList<>();
         /**
          * TODO using recursion here is probably flawed.
          */
-        if (value.value() instanceof AnnotationValue[])
-            for (AnnotationValue annotationValue : (AnnotationValue[])value.value())
+        if (value.getValue() instanceof AnnotationValue[]) {
+            for (AnnotationValue annotationValue : (AnnotationValue[])value.getValue()) {
                 retVal.addAll(resolveAnnotationValue(annotationValue));
-        else {
-            retVal.add(value.value().toString());
+            }
+        } else if (value.getValue() instanceof List) {
+            for (AnnotationValue annotationValue : (List<AnnotationValue>)value.getValue()) {
+                retVal.addAll(resolveAnnotationValue(annotationValue));
+            }
+        } else {
+            retVal.add(value.getValue().toString());
 
         }
-
         return retVal;
     }
 

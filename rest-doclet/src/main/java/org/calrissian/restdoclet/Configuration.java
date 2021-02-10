@@ -15,29 +15,30 @@
  *******************************************************************************/
 package org.calrissian.restdoclet;
 
-import org.calrissian.restdoclet.writer.simple.SimpleHtmlWriter;
-
 import static java.lang.Boolean.parseBoolean;
+import java.util.Map;
 
 public class Configuration {
 
-    private enum ConfigOption {
-        OUTPUT_FORMAT("o", SimpleHtmlWriter.OUTPUT_OPTION_NAME),
+    public enum ConfigOption {
+        OUTPUT_FORMAT("o", "Output Format", "legacy"),
 
         //Legacy Options
-        TITLE("t", "REST Endpoint Descriptions"),
-        STYLESHEET("stylesheet", "./stylesheet.css"),
+        TITLE("t", "title", "REST Endpoint Descriptions"),
+        STYLESHEET("stylesheet", "stylesheet", "./stylesheet.css"),
 
         //Swagger options
-        API_VERSION("version", null),
-        DISPLAY_ONLY("callable", "true"),
-        BASEPATH("path", "/");
+        API_VERSION("version", "version", null),
+        DISPLAY_ONLY("callable", "callable", "true"),
+        BASEPATH("path", "base path", "/");
 
-        private String option;
-        private String defaultValue;
+        private final String option;
+        private final String description;
+        private final String defaultValue;
 
-        private ConfigOption(String option, String defaultValue) {
+        private ConfigOption(String option, String description, String defaultValue) {
             this.option = "-" + option;
+            this.description = description;
             this.defaultValue = defaultValue;
         }
 
@@ -48,11 +49,18 @@ public class Configuration {
         public String getDefaultValue() {
             return defaultValue;
         }
+
+        /**
+         * @return the description
+         */
+        public String getDescription() {
+            return description;
+        }
     }
 
-    private String[][] options;
+    private Map<String, String> options;
 
-    public Configuration(String[][] options) {
+    public Configuration(Map<String, String> options) {
         this.options = options;
     }
 
@@ -89,10 +97,8 @@ public class Configuration {
     }
 
     private String getOption(String name, String defaultValue) {
-        for (String[] option : options) {
-            if (option[0].equals(name)) {
-                return option[1];
-            }
+        if (options.containsKey(name)) {
+            return options.get(name);
         }
         return defaultValue;
     }

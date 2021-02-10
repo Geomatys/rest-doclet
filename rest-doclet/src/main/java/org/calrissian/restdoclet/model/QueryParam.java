@@ -15,16 +15,16 @@
  *******************************************************************************/
 package org.calrissian.restdoclet.model;
 
-import com.sun.javadoc.Type;
+import javax.lang.model.type.TypeMirror;
 
 public class QueryParam {
 
     private final String name;
     private final boolean required;
     private final String description;
-    private final Type type;
+    private final TypeMirror type;
 
-    public QueryParam(String name, boolean required, String description, Type type) {
+    public QueryParam(String name, boolean required, String description, TypeMirror type) {
         this.name = name;
         this.required = required;
         this.description = description;
@@ -43,7 +43,7 @@ public class QueryParam {
         return description;
     }
 
-    public Type getType() {
+    public TypeMirror getType() {
         return type;
     }
 

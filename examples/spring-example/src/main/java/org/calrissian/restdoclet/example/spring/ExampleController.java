@@ -29,7 +29,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.PUT;
  * Example implementation of a REST endpoints using spring to highlight documentation features.
  *
  * @name Spring REST documentation examples.
- * @contextPath /example
+ * @contextPath /spring-example/api
  */
 @Controller
 @RequestMapping(value = {"/foo", "/bar"})

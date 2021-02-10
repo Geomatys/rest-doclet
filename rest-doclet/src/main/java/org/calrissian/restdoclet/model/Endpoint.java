@@ -15,7 +15,7 @@
  *******************************************************************************/
 package org.calrissian.restdoclet.model;
 
-import com.sun.javadoc.Type;
+import javax.lang.model.type.TypeMirror;
 
 import java.util.Collection;
 
@@ -30,7 +30,7 @@ public class Endpoint {
     private final Collection<String> produces;
     private final String shortDescription;
     private final String description;
-    private final Type type;
+    private final TypeMirror type;
 
     public Endpoint(
             String path,
@@ -42,7 +42,7 @@ public class Endpoint {
             Collection<String> produces,
             String shortDescription,
             String description,
-            Type type) {
+            TypeMirror type) {
 
         this.path = path;
         this.httpMethod = httpMethod;
@@ -92,7 +92,7 @@ public class Endpoint {
         return description;
     }
 
-    public Type getType() {
+    public TypeMirror getType() {
         return type;
     }
 

@@ -16,18 +16,20 @@
 package org.calrissian.restdoclet.writer.swagger;
 
 
-import com.sun.javadoc.ClassDoc;
-import com.sun.javadoc.FieldDoc;
-import com.sun.javadoc.ParameterizedType;
-import com.sun.javadoc.Type;
-
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Set;
 
 import static java.util.Collections.emptyList;
-import static org.calrissian.restdoclet.util.CommonUtils.isEmpty;
+import java.util.List;
+import java.util.stream.Collectors;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.NoType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import static org.calrissian.restdoclet.util.CommonUtils.*;
 
 class TypeUtils {
 
@@ -36,15 +38,15 @@ class TypeUtils {
      * @param type
      * @return
      */
-    public static String dataType(Type type) {
+    public static String dataType(TypeMirror type) {
         if (type == null)
             return null;
 
         if (isContainer(type)) {
             //treat sets as sets
-            if (isType(type.asClassDoc(), Set.class))
+            if (isType(asTypeElement(type), Set.class)) {
                 return "Set[" + internalContainerType(type) + "]";
-
+            }
             return "List[" + internalContainerType(type) + "]";
         }
 
@@ -57,16 +59,21 @@ class TypeUtils {
      * @param type
      * @return
      */
-    public static boolean isContainer(Type type) {
+    public static boolean isContainer(TypeMirror type) {
 
         //first check for arrays
-        if (type.dimension() != null && !type.dimension().isEmpty())
+        if (type.getKind().equals(TypeKind.ARRAY)) {
             return true;
+        }
+
+        if ((type instanceof NoType) || type.getKind().isPrimitive()) {
+            return false;
+        }
 
         //treat iterables as lists
-        if (isType(type.asClassDoc(), Iterable.class))
+        if (isType(asTypeElement(type), Iterable.class)) {
             return true;
-
+        }
         return false;
     }
 
@@ -75,16 +82,16 @@ class TypeUtils {
      * @param type
      * @return
      */
-    public static String internalContainerType(Type type) {
+    public static String internalContainerType(TypeMirror type) {
         //treat arrays first
-        if (type.dimension() != null && !type.dimension().isEmpty())
+        if (type.getKind().equals(TypeKind.ARRAY)) {
             return basicType(type);
+        }
 
-        ParameterizedType pType = type.asParameterizedType();
-        if (pType != null) {
-            Type[] paramTypes = ((ParameterizedType)type).typeArguments();
-            if (!isEmpty(paramTypes))
-                return basicType(paramTypes[0]);
+        DeclaredType pType = (DeclaredType)type;
+        List<? extends TypeMirror> paramTypes = pType.getTypeArguments();
+        if (!isEmpty(paramTypes)) {
+            return basicType(paramTypes.get(0));
         }
 
         //TODO look into supporting models.
@@ -96,15 +103,16 @@ class TypeUtils {
      * @param type
      * @return
      */
-    public static String basicType(Type type) {
+    public static String basicType(TypeMirror type) {
         if (type == null)
             return "void";
 
         //next primitives
-        if (type.isPrimitive())
-            return type.qualifiedTypeName();
+        if (type.getKind().isPrimitive()) {
+            return type.toString();
+        }
 
-        String name = type.qualifiedTypeName();
+        String name = type.toString();
 
         //Check the java.lang classes
         if (name.equals(String.class.getName()))
@@ -132,8 +140,9 @@ class TypeUtils {
             return "Date";
 
         //Process enums as strings.
-        if (!isEmpty(type.asClassDoc().enumConstants()))
+        if (!(type instanceof NoType) && asTypeElement(type).getKind().equals(ElementKind.ENUM_CONSTANT)) {
             return "string";
+        }
 
         //TODO look into supporting models.
         return "object";
@@ -144,19 +153,23 @@ class TypeUtils {
      * @param type
      * @return
      */
-    public static Collection<String> allowableValues(Type type) {
-        if (type == null || type.asClassDoc() == null)
+    public static Collection<String> allowableValues(TypeMirror type) {
+        TypeElement te = asTypeElement(type);
+        if (type == null || te == null) {
             return emptyList();
+        }
 
-        FieldDoc[] fields = type.asClassDoc().enumConstants();
-        if (isEmpty(fields))
-            return emptyList();
+        if (te.getKind().equals(ElementKind.ENUM_CONSTANT)) {
+            return getEnumValues(te);
+        }
+        return emptyList();
+    }
 
-        Collection<String> values = new ArrayList<String>(fields.length);
-        for (FieldDoc field : fields)
-            values.add(field.name());
-
-        return values;
+    public static List<String> getEnumValues(TypeElement enumTypeElement) {
+    return enumTypeElement.getEnclosedElements().stream()
+            .filter(element -> element.getKind().equals(ElementKind.ENUM_CONSTANT))
+            .map(Object::toString)
+            .collect(Collectors.toList());
     }
 
     /**
@@ -166,19 +179,27 @@ class TypeUtils {
      * @param <T>
      * @return
      */
-    private static <T> boolean isType(ClassDoc classDoc, Class<T> targetClazz) {
-        if (classDoc == null)
+    private static <T> boolean isType(TypeElement classDoc, Class<T> targetClazz) {
+        if (classDoc == null) {
             return false;
+        }
 
-        if (classDoc.qualifiedTypeName().equals(targetClazz.getName()))
+        if (classDoc.getQualifiedName().toString().equals(targetClazz.getName())) {
             return true;
+        }
 
-        if (isType(classDoc.superclass(), targetClazz))
-            return true;
-
-        for (ClassDoc iface : classDoc.interfaces())
-            if (isType(iface, targetClazz))
+        TypeMirror superClass = classDoc.getSuperclass();
+        if (superClass != null && !(superClass instanceof NoType)) {
+            if (isType(asTypeElement(superClass), targetClazz)) {
                 return true;
+            }
+        }
+
+        for (TypeMirror iface : classDoc.getInterfaces()) {
+            if (isType(asTypeElement(iface), targetClazz)) {
+                return true;
+            }
+        }
 
         return false;
     }

@@ -16,15 +16,15 @@
 package org.calrissian.restdoclet.model;
 
 
-import com.sun.javadoc.Type;
+import javax.lang.model.type.TypeMirror;
 
 public class RequestBody {
 
     private final String name;
     private final String description;
-    private final Type type;
+    private final TypeMirror type;
 
-    public RequestBody(String name, String description, Type type) {
+    public RequestBody(String name, String description, TypeMirror type) {
         this.name = name;
         this.description = description;
         this.type = type;
@@ -38,7 +38,7 @@ public class RequestBody {
         return description;
     }
 
-    public Type getType() {
+    public TypeMirror getType() {
         return type;
     }
 

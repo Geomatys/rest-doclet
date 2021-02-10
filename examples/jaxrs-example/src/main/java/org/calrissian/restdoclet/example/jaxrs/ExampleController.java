@@ -25,7 +25,7 @@ import java.util.Map;
  * Example implementation of a REST endpoints using JAX-RS to highlight documentation features.
  *
  * @name JAX-RS REST documentation examples.
- * @contextPath /example
+ * @contextPath /jaxrs-example/api
  */
 @Path("/foo")
 public class ExampleController {

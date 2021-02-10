@@ -39,9 +39,9 @@ import static org.calrissian.restdoclet.writer.swagger.TypeUtils.*;
 public class SwaggerWriter implements Writer {
     public static final String OUTPUT_OPTION_NAME = "swagger";
 
-    private static final String SWAGGER_DEFAULT_HTML = "swagger/index.html";
-    private static final String SWAGGER_CALLABLE_HTML = "swagger/index-callable.html";
-    private static final String SWAGGER_UI_ARTIFACT = "swagger/swagger-ui.zip";
+    private static final String SWAGGER_DEFAULT_HTML = "/swagger/index.html";
+    private static final String SWAGGER_CALLABLE_HTML = "/swagger/index-callable.html";
+    private static final String SWAGGER_UI_ARTIFACT = "/swagger/swagger-ui.zip";
     private static final String SWAGGER_VERSION = "1.2";
     private static final String RESOURCE_DOC = "./api-docs";
     private static final String API_DOC_DIR = "apis";
@@ -52,14 +52,14 @@ public class SwaggerWriter implements Writer {
     @Override
     public void write(Collection<ClassDescriptor> classDescriptors, Configuration config) throws IOException {
 
-        Map<String, Collection<Endpoint>> resources = new LinkedHashMap<String, Collection<Endpoint>>();
+        Map<String, Collection<Endpoint>> resources = new LinkedHashMap<>();
         for (ClassDescriptor classDescriptor : classDescriptors) {
             for (Endpoint endpoint : classDescriptor.getEndpoints()) {
                 String resourceName = getResource(classDescriptor.getContextPath(), endpoint);
                 if (resources.containsKey(resourceName)) {
                     resources.get(resourceName).add(endpoint);
                 } else {
-                    Collection<Endpoint> tmp = new ArrayList<Endpoint>();
+                    Collection<Endpoint> tmp = new ArrayList<>();
                     tmp.add(endpoint);
                     resources.put(resourceName, tmp);
                 }
@@ -102,10 +102,10 @@ public class SwaggerWriter implements Writer {
     }
 
     private static Collection<Operation> getOperations(Collection<Endpoint> endpoints) {
-        Collection<Operation> operations = new ArrayList<Operation>(endpoints.size());
+        Collection<Operation> operations = new ArrayList<>(endpoints.size());
 
         for (Endpoint endpoint : endpoints) {
-            Collection<Parameter> params = new ArrayList<Parameter>();
+            Collection<Parameter> params = new ArrayList<>();
 
             for (PathVar pathVar : endpoint.getPathVars())
                 params.add(getParameter(pathVar));
@@ -120,8 +120,8 @@ public class SwaggerWriter implements Writer {
                     new Operation(
                             endpoint.getHttpMethod(),
                             "nickname",
-                            endpoint.getShortDescription(),
                             endpoint.getDescription(),
+                            endpoint.getShortDescription(),
                             dataType(endpoint.getType()),
                             endpoint.getProduces(),
                             endpoint.getConsumes(),
@@ -176,12 +176,12 @@ public class SwaggerWriter implements Writer {
     }
 
     private static Map<String, Collection<Endpoint>> groupPaths (Collection<Endpoint> endpoints) {
-        Map<String, Collection<Endpoint>> paths = new LinkedHashMap<String, Collection<Endpoint>>();
+        Map<String, Collection<Endpoint>> paths = new LinkedHashMap<>();
         for (Endpoint endpoint : endpoints) {
             if (paths.containsKey(endpoint.getPath())) {
                 paths.get(endpoint.getPath()).add(endpoint);
             } else {
-                Collection<Endpoint> tmp = new ArrayList<Endpoint>();
+                Collection<Endpoint> tmp = new ArrayList<>();
                 tmp.add(endpoint);
                 paths.put(endpoint.getPath(), tmp);
             }
@@ -218,10 +218,11 @@ public class SwaggerWriter implements Writer {
         OutputStream out = null;
         try {
 
-            if (config.isCallable())
-                in = Thread.currentThread().getContextClassLoader().getResourceAsStream(SWAGGER_CALLABLE_HTML);
-            else
-                in = Thread.currentThread().getContextClassLoader().getResourceAsStream(SWAGGER_DEFAULT_HTML);
+            if (config.isCallable()) {
+                in = SwaggerWriter.class.getResourceAsStream(SWAGGER_CALLABLE_HTML);
+            } else {
+                in = SwaggerWriter.class.getResourceAsStream(SWAGGER_DEFAULT_HTML);
+            }
 
             out = new FileOutputStream(new File(".", "index.html"));
             copy(in, out);
@@ -235,7 +236,7 @@ public class SwaggerWriter implements Writer {
         ZipInputStream swaggerZip = null;
         FileOutputStream out = null;
         try{
-            swaggerZip = new ZipInputStream(Thread.currentThread().getContextClassLoader().getResourceAsStream(SWAGGER_UI_ARTIFACT));
+            swaggerZip = new ZipInputStream(SwaggerWriter.class.getResourceAsStream(SWAGGER_UI_ARTIFACT));
             ZipEntry entry;
             while ((entry = swaggerZip.getNextEntry()) != null) {
                 final File swaggerFile = new File(".", entry.getName());

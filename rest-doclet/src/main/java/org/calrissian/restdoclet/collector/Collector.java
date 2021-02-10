@@ -15,14 +15,14 @@
  *******************************************************************************/
 package org.calrissian.restdoclet.collector;
 
-import com.sun.javadoc.RootDoc;
+import jdk.javadoc.doclet.DocletEnvironment;
 import org.calrissian.restdoclet.model.ClassDescriptor;
 
 import java.util.Collection;
 
 public interface Collector {
 
-    Collection<ClassDescriptor> getDescriptors(RootDoc rootDoc);
+    Collection<ClassDescriptor> getDescriptors(DocletEnvironment rootDoc);
 
 
 }

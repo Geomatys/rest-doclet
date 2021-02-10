@@ -1,4 +1,4 @@
-/*******************************************************************************
+/** *****************************************************************************
  * Copyright (C) 2014 The Calrissian Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,13 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *******************************************************************************/
+ ****************************************************************************** */
 package org.calrissian.restdoclet;
 
-
-import com.sun.javadoc.Doclet;
-import com.sun.javadoc.LanguageVersion;
-import com.sun.javadoc.RootDoc;
+import jdk.javadoc.doclet.Doclet;
+import jdk.javadoc.doclet.StandardDoclet;
+import jdk.javadoc.doclet.DocletEnvironment;
 import org.calrissian.restdoclet.collector.Collector;
 import org.calrissian.restdoclet.collector.jaxrs.JaxRSCollector;
 import org.calrissian.restdoclet.collector.spring.SpringCollector;
@@ -31,37 +30,79 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import javax.lang.model.SourceVersion;
+import jdk.javadoc.doclet.Reporter;
+import static org.calrissian.restdoclet.Configuration.ConfigOption.API_VERSION;
+import static org.calrissian.restdoclet.Configuration.ConfigOption.BASEPATH;
+import static org.calrissian.restdoclet.Configuration.ConfigOption.DISPLAY_ONLY;
+import static org.calrissian.restdoclet.Configuration.ConfigOption.OUTPUT_FORMAT;
+import static org.calrissian.restdoclet.Configuration.ConfigOption.STYLESHEET;
+import static org.calrissian.restdoclet.Configuration.ConfigOption.TITLE;
 
 import static org.calrissian.restdoclet.Configuration.getOptionLength;
 
-public class RestDoclet extends Doclet {
+public class RestDoclet implements Doclet {
 
-    private static final Collection<Collector> collectors = Arrays.<Collector>asList(
-            new SpringCollector(),
-            new JaxRSCollector()
-    );
+    @Override
+    public void init(Locale locale, Reporter reporter) {
+        // do nothing
+    }
+
+    @Override
+    public String getName() {
+        return "RestDoclet";
+    }
+
+    private Map<String, String> options = new HashMap<>();
+
+    @Override
+    public Set<? extends Option> getSupportedOptions() {
+        Set<ConfigOption> options = new HashSet<>();
+        options.add(new ConfigOption(OUTPUT_FORMAT));
+        //Legacy Options
+        options.add(new ConfigOption(TITLE));
+        options.add(new ConfigOption(STYLESHEET));
+        //Swagger options
+        options.add(new ConfigOption(API_VERSION));
+        options.add(new ConfigOption(DISPLAY_ONLY));
+        options.add(new ConfigOption(BASEPATH) );
+        return options;
+    };
+
 
     /**
-     * Generate documentation here.
-     * This method is required for all doclets.
+     * Generate documentation here. This method is required for all doclets.
      *
      * @return true on success.
      */
-    public static boolean start(RootDoc root) {
+    @Override
+    public boolean run(DocletEnvironment root) {
 
-        Configuration config = new Configuration(root.options());
+        Configuration config = new Configuration(options);
 
-        Collection<ClassDescriptor> classDescriptors = new ArrayList<ClassDescriptor>();
+        Collection<ClassDescriptor> classDescriptors = new ArrayList<>();
 
-        for (Collector collector : collectors)
+        final Collection<Collector> collectors = Arrays.<Collector>asList(
+            new SpringCollector(root.getDocTrees()),
+            new JaxRSCollector(root.getDocTrees())
+        );
+
+        for (Collector collector : collectors) {
             classDescriptors.addAll(collector.getDescriptors(root));
+        }
 
         Writer writer;
-        if (config.getOutputFormat().equals(SwaggerWriter.OUTPUT_OPTION_NAME))
+        if (config.getOutputFormat().equals(SwaggerWriter.OUTPUT_OPTION_NAME)) {
             writer = new SwaggerWriter();
-        else
+        } else {
             writer = new SimpleHtmlWriter();
-
+        }
 
         try {
             writer.write(classDescriptors, config);
@@ -74,6 +115,7 @@ public class RestDoclet extends Doclet {
 
     /**
      * Required to validate command line options.
+     *
      * @param option option name
      * @return option length
      */
@@ -82,11 +124,56 @@ public class RestDoclet extends Doclet {
     }
 
     /**
-     * NOTE: Without this method present and returning LanguageVersion.JAVA_1_5,
-     *       Javadoc will not process generics because it assumes LanguageVersion.JAVA_1_1
-     * @return language version (hard coded to LanguageVersion.JAVA_1_5)
+     * @return language version (hard coded to SourceVersion.RELEASE_11)
      */
-    public static LanguageVersion languageVersion() {
-        return LanguageVersion.JAVA_1_5;
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.RELEASE_11;
+    }
+
+    public class ConfigOption implements Doclet.Option {
+
+        private final String name;
+        private final boolean hasArg;
+        private final String description;
+        private final String parameters;
+
+        public ConfigOption(Configuration.ConfigOption co) {
+            this.name = co.getOption();
+            this.hasArg = true;
+            this.description = co.getDescription();
+            this.parameters = co.getDefaultValue();
+        }
+
+        @Override
+        public int getArgumentCount() {
+            return 1;
+        }
+
+        @Override
+        public String getDescription() {
+            return description;
+        }
+
+        @Override
+        public Option.Kind getKind() {
+            return Option.Kind.STANDARD;
+        }
+
+        @Override
+        public List<String> getNames() {
+            return List.of(name);
+        }
+
+        @Override
+        public String getParameters() {
+            return hasArg ? parameters : "";
+        }
+
+        @Override
+        public boolean process(String option, List<String> arguments) {
+            options.put(option, arguments.get(0));
+            return true;
+        }
     }
 }

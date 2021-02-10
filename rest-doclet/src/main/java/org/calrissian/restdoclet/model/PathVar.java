@@ -15,15 +15,15 @@
  *******************************************************************************/
 package org.calrissian.restdoclet.model;
 
-import com.sun.javadoc.Type;
+import javax.lang.model.type.TypeMirror;
 
 public class PathVar {
 
     private final String name;
     private final String description;
-    private final Type type;
+    private final TypeMirror type;
 
-    public PathVar(String name, String description, Type type) {
+    public PathVar(String name, String description, TypeMirror type) {
         this.name = name;
         this.description = description;
         this.type = type;
@@ -37,7 +37,7 @@ public class PathVar {
         return description;
     }
 
-    public Type getType() {
+    public TypeMirror getType() {
         return type;
     }
 

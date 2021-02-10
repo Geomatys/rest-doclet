@@ -19,9 +19,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 
 import static java.util.Collections.emptySet;
+import java.util.List;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Simple utilities to reduce the number of dependencies needed for the project
@@ -79,8 +86,9 @@ public class CommonUtils {
     }
 
     public static String fixPath(String path) {
-        if (isEmpty(path))
+        if (isEmpty(path)) {
             return "/";
+        }
 
         //remove duplicates path seperators
         int len = 0;
@@ -88,13 +96,30 @@ public class CommonUtils {
             len = path.length();
             path = path.replaceAll("//", "/");
         }
-
-        if (path.length() > 1 && path.endsWith("/"))
+        if (path.length() > 1 && path.endsWith("/")) {
             path = path.substring(0, path.length() - 2);
+        }
 
-        if (!path.startsWith("/"))
+        if (!path.startsWith("/")) {
             path = "/" + path;
-
+        }
         return path;
+    }
+
+    public static List<ExecutableElement> getMethods(TypeElement classDoc) {
+        final List<ExecutableElement> results = new ArrayList<>();
+        for (Element ee : classDoc.getEnclosedElements()) {
+            if (ee instanceof ExecutableElement) {
+                results.add((ExecutableElement) ee);
+            }
+        }
+        return results;
+    }
+
+    public static TypeElement asTypeElement(TypeMirror type) {
+        if (type instanceof DeclaredType) {
+            return (TypeElement)((DeclaredType)type).asElement();
+        }
+        return null;
     }
 }

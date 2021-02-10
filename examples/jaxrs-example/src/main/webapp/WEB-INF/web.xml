@@ -22,9 +22,9 @@ http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
 
     <servlet>
         <servlet-name>example</servlet-name>
-        <servlet-class>com.sun.jersey.spi.container.servlet.ServletContainer</servlet-class>
+        <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
         <init-param>
-            <param-name>com.sun.jersey.config.property.packages</param-name>
+            <param-name>jersey.config.server.provider.packages</param-name>
             <param-value>org.calrissian.restdoclet.example.jaxrs</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
@@ -32,6 +32,6 @@ http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
 
     <servlet-mapping>
         <servlet-name>example</servlet-name>
-        <url-pattern>example/*</url-pattern>
+        <url-pattern>/api/*</url-pattern>
     </servlet-mapping>
 </web-app>

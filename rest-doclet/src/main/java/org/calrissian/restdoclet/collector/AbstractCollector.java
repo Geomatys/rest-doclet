@@ -16,10 +16,7 @@
 package org.calrissian.restdoclet.collector;
 
 
-import com.sun.javadoc.ClassDoc;
-import com.sun.javadoc.MethodDoc;
-import com.sun.javadoc.ProgramElementDoc;
-import com.sun.javadoc.RootDoc;
+import com.sun.source.util.DocTrees;
 import org.calrissian.restdoclet.model.*;
 
 import java.util.ArrayList;
@@ -27,17 +24,30 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 
 import static java.util.Collections.emptyList;
+import java.util.List;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.NoType;
+import javax.lang.model.type.TypeMirror;
+import jdk.javadoc.doclet.DocletEnvironment;
 import static org.calrissian.restdoclet.util.CommonUtils.*;
 import static org.calrissian.restdoclet.util.TagUtils.*;
 
 public abstract class AbstractCollector implements Collector {
 
-    protected abstract boolean shouldIgnoreClass(ClassDoc classDoc);
-    protected abstract boolean shouldIgnoreMethod(MethodDoc methodDoc);
-    protected abstract EndpointMapping getEndpointMapping(ProgramElementDoc doc);
-    protected abstract Collection<PathVar> generatePathVars(MethodDoc methodDoc);
-    protected abstract Collection<QueryParam> generateQueryParams(MethodDoc methodDoc);
-    protected abstract RequestBody generateRequestBody(MethodDoc methodDoc);
+    protected final DocTrees treeUtils;
+
+    public AbstractCollector(DocTrees treeUtils) {
+        this.treeUtils = treeUtils;
+    }
+
+    protected abstract boolean shouldIgnoreClass(TypeElement classDoc);
+    protected abstract boolean shouldIgnoreMethod(ExecutableElement methodDoc);
+    protected abstract EndpointMapping getEndpointMapping(Element doc);
+    protected abstract Collection<PathVar> generatePathVars(ExecutableElement methodDoc);
+    protected abstract Collection<QueryParam> generateQueryParams(ExecutableElement methodDoc);
+    protected abstract RequestBody generateRequestBody(ExecutableElement methodDoc);
 
     /**
      * Will generate and aggregate all the rest endpoint class descriptors.
@@ -45,16 +55,19 @@ public abstract class AbstractCollector implements Collector {
      * @return
      */
     @Override
-    public Collection<ClassDescriptor> getDescriptors(RootDoc rootDoc) {
-        Collection<ClassDescriptor> classDescriptors = new ArrayList<ClassDescriptor>();
+    public Collection<ClassDescriptor> getDescriptors(DocletEnvironment rootDoc) {
+        Collection<ClassDescriptor> classDescriptors = new ArrayList<>();
 
         //Loop through all of the classes and if it contains endpoints then add it to the set of descriptors.
-        for (ClassDoc classDoc : rootDoc.classes()) {
-            ClassDescriptor descriptor = getClassDescriptor(classDoc);
-            if (descriptor != null && !isEmpty(descriptor.getEndpoints()))
-                classDescriptors.add(descriptor);
+        for (Element e : rootDoc.getIncludedElements()) {
+            if (e instanceof TypeElement) {
+                TypeElement classDoc = (TypeElement) e;
+                ClassDescriptor descriptor = getClassDescriptor(classDoc);
+                if (descriptor != null && !isEmpty(descriptor.getEndpoints())) {
+                    classDescriptors.add(descriptor);
+                }
+            }
         }
-
         return classDescriptors;
     }
 
@@ -65,17 +78,19 @@ public abstract class AbstractCollector implements Collector {
      * @param classDoc
      * @return
      */
-    protected ClassDescriptor getClassDescriptor(ClassDoc classDoc) {
+    protected ClassDescriptor getClassDescriptor(TypeElement classDoc) {
 
         //If the ignore tag is present or this type of class should be ignored then simply ignore this class
-        if (!isEmpty(classDoc.tags(IGNORE_TAG)) || shouldIgnoreClass(classDoc))
+        if (!isEmpty(getTags(classDoc, IGNORE_TAG, treeUtils)) || shouldIgnoreClass(classDoc)) {
             return null;
+        }
         String contextPath = getContextPath(classDoc);
         Collection<Endpoint> endpoints = getAllEndpoints(contextPath, classDoc, getEndpointMapping(classDoc));
 
         //If there are no endpoints then no use in providing documentation.
-        if (isEmpty(endpoints))
+        if (isEmpty(endpoints)) {
             return null;
+        }
 
         String name = getClassName(classDoc);
         String description = getClassDescription(classDoc);
@@ -95,16 +110,21 @@ public abstract class AbstractCollector implements Collector {
      * @param classMapping
      * @return
      */
-    protected Collection<Endpoint> getAllEndpoints(String contextPath, ClassDoc classDoc, EndpointMapping classMapping) {
-        Collection<Endpoint> endpoints = new ArrayList<Endpoint>();
+    protected Collection<Endpoint> getAllEndpoints(String contextPath, TypeElement classDoc, EndpointMapping classMapping) {
+        Collection<Endpoint> endpoints = new ArrayList<>();
 
-        for (MethodDoc method : classDoc.methods(true))
+        for (ExecutableElement method : getMethods(classDoc)) {
             endpoints.addAll(getEndpoint(contextPath, classMapping, method));
+        }
 
         //Check super classes for inherited methods
-        if (classDoc.superclass() != null)
-            endpoints.addAll(getAllEndpoints(contextPath, classDoc.superclass(), classMapping));
-
+        TypeMirror superClass = classDoc.getSuperclass();
+        if (superClass != null && !(superClass instanceof NoType)) {
+            TypeElement te = asTypeElement(classDoc.getSuperclass());
+            if (te != null) {
+                endpoints.addAll(getAllEndpoints(contextPath, te, classMapping));
+            }
+        }
         return endpoints;
     }
 
@@ -117,13 +137,13 @@ public abstract class AbstractCollector implements Collector {
      * @param method
      * @return
      */
-    protected Collection<Endpoint> getEndpoint(String contextPath, EndpointMapping classMapping, MethodDoc method) {
+    protected Collection<Endpoint> getEndpoint(String contextPath, EndpointMapping classMapping, ExecutableElement method) {
 
         //If the ignore tag is present then simply return nothing for this endpoint.
-        if (!isEmpty(method.tags(IGNORE_TAG)) || shouldIgnoreMethod(method))
+        if (!isEmpty(getTags(method, IGNORE_TAG, treeUtils)) || shouldIgnoreMethod(method))
             return emptyList();
 
-        Collection<Endpoint> endpoints = new ArrayList<Endpoint>();
+        Collection<Endpoint> endpoints = new ArrayList<>();
         EndpointMapping methodMapping = getEndpointMapping(method);
 
         Collection<String> paths = resolvePaths(contextPath, classMapping, methodMapping);
@@ -133,11 +153,12 @@ public abstract class AbstractCollector implements Collector {
         Collection<PathVar> pathVars = generatePathVars(method);
         Collection<QueryParam> queryParams = generateQueryParams(method);
         RequestBody requestBody = generateRequestBody(method);
+        String firstSentence = firstSentence(method, treeUtils);
+        String body = fullBody(method, treeUtils);
 
-        for (String httpMethod : httpMethods)
-            for (String path : paths)
-                endpoints.add(
-                        new Endpoint(
+        for (String httpMethod : httpMethods) {
+            for (String path : paths) {
+                Endpoint ep = new Endpoint(
                                 path,
                                 httpMethod,
                                 queryParams,
@@ -145,11 +166,12 @@ public abstract class AbstractCollector implements Collector {
                                 requestBody,
                                 consumes,
                                 produces,
-                                method.commentText(),
-                                firstSentence(method),
-                                method.returnType()
-                        )
-                );
+                                firstSentence,
+                                body,
+                                method.getReturnType());
+                endpoints.add(ep);
+            }
+        }
 
         return endpoints;
     }
@@ -162,10 +184,11 @@ public abstract class AbstractCollector implements Collector {
      * @param classDoc
      * @return
      */
-    protected String getContextPath(ClassDoc classDoc) {
-        if(!isEmpty(classDoc.tags(CONTEXT_TAG)))
-            return classDoc.tags(CONTEXT_TAG)[0].text();
-
+    protected String getContextPath(TypeElement classDoc) {
+        List<String> tags = getTags(classDoc, CONTEXT_TAG, treeUtils);
+        if(!isEmpty(tags)) {
+            return tags.get(0);
+        }
         return "";
     }
 
@@ -177,11 +200,12 @@ public abstract class AbstractCollector implements Collector {
      * @param classDoc
      * @return
      */
-    protected String getClassName(ClassDoc classDoc) {
-        if (!isEmpty(classDoc.tags(NAME_TAG)))
-            return classDoc.tags(NAME_TAG)[0].text();
-
-        return classDoc.typeName();
+    protected String getClassName(TypeElement classDoc) {
+        List<String> tags = getTags(classDoc, NAME_TAG, treeUtils);
+        if(!isEmpty(tags)) {
+            return tags.get(0);
+        }
+        return classDoc.getQualifiedName().toString();
     }
 
     /**
@@ -189,8 +213,8 @@ public abstract class AbstractCollector implements Collector {
      * @param classDoc
      * @return
      */
-    protected String getClassDescription(ClassDoc classDoc) {
-        return classDoc.commentText();
+    protected String getClassDescription(TypeElement classDoc) {
+        return fullBody(classDoc, treeUtils);
     }
 
     /**
@@ -208,26 +232,23 @@ public abstract class AbstractCollector implements Collector {
         contextPath = (contextPath == null ? "" : contextPath);
 
         //Build all the paths based on the class level, plus the method extensions.
-        LinkedHashSet<String> paths = new LinkedHashSet<String>();
+        LinkedHashSet<String> paths = new LinkedHashSet<>();
 
         if (isEmpty(classMapping.getPaths())) {
-
-            for (String path : methodMapping.getPaths())
+            for (String path : methodMapping.getPaths()) {
                 paths.add(fixPath(contextPath + path));
-
+            }
         } else if (isEmpty(methodMapping.getPaths())) {
-
-            for (String path : classMapping.getPaths())
+            for (String path : classMapping.getPaths()) {
                 paths.add(fixPath(contextPath + path));
-
+            }
         } else {
-
-            for (String defaultPath : classMapping.getPaths())
-                for (String path : methodMapping.getPaths())
+            for (String defaultPath : classMapping.getPaths()) {
+                for (String path : methodMapping.getPaths()) {
                     paths.add(fixPath(contextPath + defaultPath + path));
-
+                }
+            }
         }
-
         return paths;
     }
 
