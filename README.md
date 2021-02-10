@@ -97,9 +97,9 @@ Configure the javadoc plugin to use a custom doclet.  The following shows how to
                           <description>REST ${project.version} Documentation</description>
                           <doclet>org.calrissian.restdoclet.RestDoclet</doclet>
                           <docletArtifact>
-                              <groupId>org.calrissian</groupId>
+                              <groupId>com.geomatys.restdoclet</groupId>
                               <artifactId>rest-doclet</artifactId>
-                              <version>0.1-SNAPSHOT</version>
+                              <version>2.0.0-SNAPSHOT</version>
                           </docletArtifact>
                           <useStandardDocletOptions>false</useStandardDocletOptions>
                           <destDir>restdoc</destDir>
